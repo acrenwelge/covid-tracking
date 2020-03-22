@@ -1,0 +1,16 @@
+button {
+  font-size: 14px;
+  border-radius: 0;
+  border: 2px solid black;
+  background-color: lightblue;
+  cursor: pointer;
+}
+
+h1 {
+  text-align: center;
+}
+
+#graph {
+  max-width: 80vw;
+  margin: auto;
+}
