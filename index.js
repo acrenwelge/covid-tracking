@@ -85,7 +85,7 @@ window.addEventListener('DOMContentLoaded', function() {
     chart.update();
   }
 
-  let dailyBtnFunc = function(e) {
+  function init() {
     let cacheData = localStorage.getItem('covid');
     if (cacheData) {
       createChart(JSON.parse(cacheData));
@@ -102,8 +102,7 @@ window.addEventListener('DOMContentLoaded', function() {
     btn.addEventListener('click', (e) => {
       toggleAxis();
     });
-    dailyBtn.removeEventListener('click', dailyBtnFunc);
   }
 
-  dailyBtn.addEventListener('click', dailyBtnFunc);
+  init();
 });
