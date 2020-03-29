@@ -3,8 +3,13 @@ window.addEventListener('DOMContentLoaded', function() {
   let graphContainer = document.getElementById('graph');
   let ctx = document.getElementById('covid-chart').getContext('2d');
   let chart;
+  let data;
   let dailyBtn = document.getElementById('getUSDaily');
   let totalBtn = document.getElementById('getUSTotal');
+  let config = {
+    model: 'exponential'
+  }
+  let regressionModel;
 
   let getTotalFunc = function(e) {
     fetch('https://covidtracking.com/api/us').then(resp => {
@@ -40,7 +45,41 @@ window.addEventListener('DOMContentLoaded', function() {
     return arr;
   }
 
-  function createChart(data) {
+  function getRegressionData(dates, regrInput) {
+    let extractData = (arr2d) => {
+      let newData = [];
+      for (let arr of arr2d) {
+        newData.push(arr[1]);
+      }
+      return newData;
+    }
+    let regrData = [];
+    for (let x=0; x < dates.length; x++) {
+      regrData.push([x, regrInput[x]]);
+    }
+    if (config.model === 'exponential') {
+       regressionModel = regression.exponential(regrData);
+    } else if (config.model === 'power') {
+      regressionModel = regression.power(regrData);
+    } else if (config.model === 'polynomial') {
+      regressionModel = regression.polynomial(regrData);
+    }
+    return extractData(regressionModel.points);
+  }
+
+  function createChart() {
+    // put the data in the right order (chronologically)
+    data = data.sort((first, second) => first.date - second.date);
+    // x axis
+    let dates = getArrayOfDates(data);
+    // datasets
+    let posCases = getDataset(data, 'positive');
+    let negCases = getDataset(data, 'negative');
+    let deaths = getDataset(data, 'deaths');
+    let hospitalized = getDataset(data, 'hospitalized');
+    // regression
+    let regressionData = getRegressionData(dates, posCases);
+    // create chart
     chart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -48,23 +87,31 @@ window.addEventListener('DOMContentLoaded', function() {
         datasets: [
           {
             label: "Positive Tests",
-            backgroundColor: 'red',
-            data: getDataset(data, 'positive')
+            pointBackgroundColor: 'red',
+            borderColor: 'red',
+            data: posCases
+          },
+          {
+            label: "Positive Case Regression",
+            pointBackgroundColor: 'yellow',
+            borderColor: 'yellow',
+            data: regressionData
           },
           {
             label: "Negative Tests",
-            backgroundColor: 'green',
-            data: getDataset(data, 'negative')
+            pointBackgroundColor: 'green',
+            borderColor: 'green',
+            data: negCases
           },
           {
             label: "Deaths",
             backgroundColor: 'black',
-            data: getDataset(data, 'deaths')
+            data: deaths
           },
           {
             label: "Hospitalized",
             backgroundColor: 'grey',
-            data: getDataset(data, 'hospitalized')
+            data: hospitalized
           }
       ]
       },
@@ -86,21 +133,36 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   function init() {
-    let cacheData = localStorage.getItem('covid');
-    if (cacheData) {
-      createChart(JSON.parse(cacheData));
-    } else {
+    // let cacheData = localStorage.getItem('covid');
+    // if (cacheData) {
+    //   createChart(JSON.parse(cacheData));
+    // } else {
       fetch('https://covidtracking.com/api/us/daily').then(resp => {
         return resp.json();
-      }).then(data => {
-        localStorage.setItem('covid', JSON.stringify(data));
-        createChart(data);
+      }).then(newData => {
+        //localStorage.setItem('covid', JSON.stringify(data));
+        data = newData;
+        createChart();
       });
-    }
+    // }
     let btn = document.getElementById('toggleAxis');
     btn.hidden = false;
     btn.addEventListener('click', (e) => {
       toggleAxis();
+    });
+    document.getElementById('select-model').addEventListener('change', (e) => {
+      console.log('selected new model');
+      config.model = e.target.value;
+      console.log(`rebuilding with ${config.model}`);
+      createChart();
+    });
+    document.getElementById('predict-btn').addEventListener('click', (e) => {
+      let days = Number(document.getElementById('predict-input').value) - 1;
+      console.log(`array length: ${data.length} - days = ${days}`);
+      let prediction = regressionModel.predict(data.length + days);
+      let predictVal = Number(prediction[1].toFixed(0)).toLocaleString();
+      let predictDays = prediction[0].toLocaleString();
+      document.getElementById('result').textContent = `Model predicts ${predictVal} cases on day ${predictDays}`;
     });
   }
 

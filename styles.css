@@ -14,3 +14,7 @@ h1 {
   max-width: 80vw;
   margin: auto;
 }
+
+#result-box span {
+  font-weight: bold;
+}
