@@ -8,22 +8,34 @@
 <body>
   <main>
     <h1>Coronavirus Cases in the US</h1>
-    <div id="stats"></div>
+    <div class="mb">
+      <strong>
+        Disclaimer: this is a VERY SIMPLE model using a simple regression on the existing data. Please do not use
+        this in place of more sophisticated, professional models which use more accurate parameters to forecast cases
+      </strong>
+    </div>
     <div id="graph">
       <canvas id="covid-chart"></canvas>
     </div>
-    <button id="getUSTotal">See US Totals</button>
-    <button id="toggleAxis" type="button" name="button" hidden>Toggle Axis</button>
-    <label for="model">Regression:</label>
-    <select name="model" id="select-model">
-      <option value="exponential" selected>Exponential</option>
-      <option value="polynomial">Polynomial</option>
-      <option value="power">Power Law</option>
-    </select>
-    <span>Predict total cases in</span><input id="predict-input" type="text">days
-    <button type="button" name="button" id="predict-btn">Go</button>
-    <div id="result-box">
-      <span id="result"></span>
+    <div class="mb mt">
+      <button class="bg-blue" id="getUSTotal">See US Totals from API</button>
+      <button class="bg-blue" id="toggleAxis" type="button" name="button" hidden>Toggle Axis</button>
+    </div>
+    <div id="stats"></div>
+    <div class="mb">
+      <label for="model">Regression:</label>
+      <select class="select-css" name="model" id="select-model">
+        <option value="exponential" selected>Exponential</option>
+        <option value="polynomial">Polynomial</option>
+        <option value="power">Power Law</option>
+      </select>
+    </div>
+    <div class="mb">
+      <span>Predict total cases in </span><input class="input-sm" id="predict-input" type="number" min=0> days
+      <button type="button" class="bg-red" name="button" id="predict-btn">Go</button>
+      <div id="result-box">
+        <span id="result"></span>
+      </div>
     </div>
   </main>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
