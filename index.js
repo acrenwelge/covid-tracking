@@ -7,7 +7,8 @@ window.addEventListener('DOMContentLoaded', function() {
   let dailyBtn = document.getElementById('getUSDaily');
   let totalBtn = document.getElementById('getUSTotal');
   let config = {
-    model: 'exponential'
+    model: 'exponential',
+    viewIncreases: false
   }
   let regressionModel;
 
@@ -63,6 +64,8 @@ window.addEventListener('DOMContentLoaded', function() {
       regressionModel = regression.power(regrData);
     } else if (config.model === 'polynomial') {
       regressionModel = regression.polynomial(regrData);
+    } else if (config.model === 'linear') {
+      regressionModel = regression.linear(regrData);
     }
     return extractData(regressionModel.points);
   }
@@ -73,10 +76,18 @@ window.addEventListener('DOMContentLoaded', function() {
     // x axis
     let dates = getArrayOfDates(data);
     // datasets
-    let posCases = getDataset(data, 'positive');
-    let negCases = getDataset(data, 'negative');
-    let deaths = getDataset(data, 'deaths');
-    let hospitalized = getDataset(data, 'hospitalized');
+    let posCases, negCases, deaths, hospitalized;
+    if (config.viewIncreases) {
+      posCases = getDataset(data, 'positiveIncrease');
+      negCases = getDataset(data, 'negativeIncrease');
+      deaths = getDataset(data, 'deathIncrease');
+      hospitalized = getDataset(data, 'hospitalizedIncrease');
+    } else {
+      posCases = getDataset(data, 'positive');
+      negCases = getDataset(data, 'negative');
+      deaths = getDataset(data, 'death');
+      hospitalized = getDataset(data, 'hospitalized');
+    }
     // regression
     let regressionData = getRegressionData(dates, posCases);
     // create chart
@@ -133,21 +144,15 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   function init() {
-    // let cacheData = localStorage.getItem('covid');
-    // if (cacheData) {
-    //   createChart(JSON.parse(cacheData));
-    // } else {
-      fetch('https://covidtracking.com/api/us/daily').then(resp => {
-        return resp.json();
-      }).then(newData => {
-        //localStorage.setItem('covid', JSON.stringify(data));
-        data = newData;
-        createChart();
-      });
-    // }
-    let btn = document.getElementById('toggleAxis');
-    btn.hidden = false;
-    btn.addEventListener('click', (e) => {
+    fetch('https://covidtracking.com/api/us/daily').then(resp => {
+      return resp.json();
+    }).then(newData => {
+      data = newData;
+      createChart();
+    });
+    let axisBtn = document.getElementById('toggleAxis');
+    axisBtn.hidden = false;
+    axisBtn.addEventListener('click', (e) => {
       toggleAxis();
     });
     document.getElementById('select-model').addEventListener('change', (e) => {
@@ -163,6 +168,10 @@ window.addEventListener('DOMContentLoaded', function() {
       let predictVal = Number(prediction[1].toFixed(0)).toLocaleString();
       let predictDays = prediction[0].toLocaleString();
       document.getElementById('result').textContent = `Model predicts ${predictVal} cases on day ${predictDays}`;
+    });
+    document.getElementById('toggleViewIncreases').addEventListener('click', (e) => {
+      config.viewIncreases = !config.viewIncreases;
+      createChart();
     });
   }
 
