@@ -1,34 +1,18 @@
 window.addEventListener('DOMContentLoaded', function() {
+  const apiURL = 'https://covidtracking.com/api';
   let statContainer = document.getElementById('stats');
-  let graphContainer = document.getElementById('graph');
-  let ctx = document.getElementById('covid-chart').getContext('2d');
-  let chart;
-  let data;
+  let lineGraphContainer = document.getElementById('line-graph-container');
+  let lineGraph;
+  let lineGraphData;
+  let pieChartContainer = document.getElementById('pie-chart-container');
+  let pieChart;
+  let pieChartData;
   let dailyBtn = document.getElementById('getUSDaily');
-  let totalBtn = document.getElementById('getUSTotal');
   let config = {
     model: 'exponential',
     viewIncreases: false
   }
   let regressionModel;
-
-  let getTotalFunc = function(e) {
-    fetch('https://covidtracking.com/api/us').then(resp => {
-      return resp.json();
-    }).then(data => {
-      let ul = document.createElement('ul');
-      let dataObj = data[0];
-      for (key in dataObj) {
-        let li = document.createElement('li');
-        li.textContent = `${key}: ${dataObj[key]}`
-        ul.appendChild(li);
-      }
-      statContainer.appendChild(ul);
-    });
-    totalBtn.removeEventListener('click', getTotalFunc);
-  }
-
-  totalBtn.addEventListener('click', getTotalFunc);
 
   function getArrayOfDates(data) {
     let arr = [];
@@ -70,31 +54,32 @@ window.addEventListener('DOMContentLoaded', function() {
     return extractData(regressionModel.points);
   }
 
-  function createChart() {
+  function createLineGraph() {
     // put the data in the right order (chronologically)
-    data = data.sort((first, second) => first.date - second.date);
+    lineGraphData = lineGraphData.sort((first, second) => first.date - second.date);
     // x axis
-    let dates = getArrayOfDates(data);
+    let dates = getArrayOfDates(lineGraphData);
     // datasets
     let posCases, negCases, deaths, hospitalized;
     if (config.viewIncreases) {
-      posCases = getDataset(data, 'positiveIncrease');
-      negCases = getDataset(data, 'negativeIncrease');
-      deaths = getDataset(data, 'deathIncrease');
-      hospitalized = getDataset(data, 'hospitalizedIncrease');
+      posCases = getDataset(lineGraphData, 'positiveIncrease');
+      negCases = getDataset(lineGraphData, 'negativeIncrease');
+      deaths = getDataset(lineGraphData, 'deathIncrease');
+      hospitalized = getDataset(lineGraphData, 'hospitalizedIncrease');
     } else {
-      posCases = getDataset(data, 'positive');
-      negCases = getDataset(data, 'negative');
-      deaths = getDataset(data, 'death');
-      hospitalized = getDataset(data, 'hospitalized');
+      posCases = getDataset(lineGraphData, 'positive');
+      negCases = getDataset(lineGraphData, 'negative');
+      deaths = getDataset(lineGraphData, 'death');
+      hospitalized = getDataset(lineGraphData, 'hospitalized');
     }
     // regression
     let regressionData = getRegressionData(dates, posCases);
-    // create chart
-    chart = new Chart(ctx, {
+    // create line graph
+    let lineCtx = document.getElementById('line-graph').getContext('2d');
+    lineGraph = new Chart(lineCtx, {
       type: 'line',
       data: {
-        labels: getArrayOfDates(data),
+        labels: getArrayOfDates(lineGraphData),
         datasets: [
           {
             label: "Positive Tests",
@@ -127,28 +112,57 @@ window.addEventListener('DOMContentLoaded', function() {
       ]
       },
       options: {
-        responsive: true
+        responsive: true,
+        scales: {
+            yAxes: [{
+                ticks: {
+                    beginAtZero: true
+                }
+            }]
+        }
       }
     });
   }
 
   function toggleAxis() {
-    let axisType = chart.options.scales.yAxes[0].type === 'logarithmic' ? 'linear' : 'logarithmic';
-    chart.options.scales = {
+    let axisType = lineGraph.options.scales.yAxes[0].type === 'logarithmic' ? 'linear' : 'logarithmic';
+    lineGraph.options.scales = {
       yAxes: [{
         display: true,
         type: axisType
       }]
     };
-    chart.update();
+    lineGraph.update();
+  }
+
+  function createPieChart() {
+    let pieCtx = document.getElementById('pie-chart').getContext('2d');
+    let nonHosp = Number(pieChartData.positives - pieChartData.hosp);
+    pieChart = new Chart(pieCtx, {
+      type: 'pie',
+      data: {
+        datasets: [
+          {
+            data: [nonHosp, pieChartData.hosp, pieChartData.dead],
+            backgroundColor: ['red', 'blue', 'green']
+          }
+        ],
+        labels: ['Not Hospitalized', 'Hospitalized', 'Deaths']
+      },
+      options: {
+        responsive: true
+      }
+    });
+    console.debug(`pie chart data: ${JSON.stringify(pieChartData)}`);
+    pieChartContainer.removeAttribute('hidden');
   }
 
   function init() {
-    fetch('https://covidtracking.com/api/us/daily').then(resp => {
+    fetch(`${apiURL}/us/daily`).then(resp => {
       return resp.json();
     }).then(newData => {
-      data = newData;
-      createChart();
+      lineGraphData = newData;
+      createLineGraph();
     });
     let axisBtn = document.getElementById('toggleAxis');
     axisBtn.hidden = false;
@@ -156,23 +170,62 @@ window.addEventListener('DOMContentLoaded', function() {
       toggleAxis();
     });
     document.getElementById('select-model').addEventListener('change', (e) => {
-      console.log('selected new model');
+      console.debug('selected new model');
       config.model = e.target.value;
-      console.log(`rebuilding with ${config.model}`);
-      createChart();
+      console.debug(`rebuilding with ${config.model}`);
+      createLineGraph();
     });
     document.getElementById('predict-btn').addEventListener('click', (e) => {
       let days = Number(document.getElementById('predict-input').value) - 1;
-      console.log(`array length: ${data.length} - days = ${days}`);
-      let prediction = regressionModel.predict(data.length + days);
-      let predictVal = Number(prediction[1].toFixed(0)).toLocaleString();
-      let predictDays = prediction[0].toLocaleString();
-      document.getElementById('result').textContent = `Model predicts ${predictVal} cases on day ${predictDays}`;
+      let prediction = regressionModel.predict(lineGraphData.length + days);
+      let predictVal = Number(prediction[1].toFixed(0));
+      let predictDays = prediction[0];
+      document.getElementById('result').textContent = `Model predicts ${predictVal.toLocaleString()} cases on day ${predictDays}`;
     });
     document.getElementById('toggleViewIncreases').addEventListener('click', (e) => {
       config.viewIncreases = !config.viewIncreases;
-      createChart();
+      if (config.viewIncreases) {
+        e.target.textContent = "View Cumulative Data";
+      } else {
+        e.target.textContent = "View Daily Increases";
+      }
+      createLineGraph();
     });
+    let totalBtn = document.getElementById('getUSTotal');
+    let totalBtnFunc = () => {
+      if (pieChartData) {
+        pieChartContainer.toggleAttribute('hidden');
+      } else {
+        fetch(`${apiURL}/us`).then(resp => {
+          return resp.json();
+        }).then(data => {
+          let span = document.createElement('span');
+          let d = data[0];
+          pieChartData = {
+            time: new Date(d.lastModified),
+            totTests: d.totalTestResults,
+            positives: d.positive,
+            hosp: d.hospitalizedCumulative,
+            icu: d.inIcuCumulative,
+            vent: d.onVentilatorCumulative,
+            dead: d.death,
+            recovered: d.recovered,
+          };
+          span.textContent = `As of ${pieChartData.time.toLocaleTimeString()}, there have been ${pieChartData.totTests.toLocaleString()} total tests conducted.
+          \n
+            Of those, ${pieChartData.positives.toLocaleString()} have been positive, with ${pieChartData.hosp.toLocaleString()} requiring hospitalization
+            and ${pieChartData.icu.toLocaleString()} requiring intensive care.
+          \n
+          ${pieChartData.vent.toLocaleString()} people infected have required ventilators
+            and ${pieChartData.dead.toLocaleString()} people have died. ${pieChartData.recovered.toLocaleString()} people have recovered so far.`;
+          span.style.fontWeight = 'bold';
+          statContainer.appendChild(span);
+          createPieChart();
+        });
+      totalBtn.removeEventListener('click', totalBtnFunc);
+      }
+    }
+    totalBtn.addEventListener('click', totalBtnFunc);
   }
 
   init();
