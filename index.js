@@ -157,6 +157,14 @@ window.addEventListener('DOMContentLoaded', function() {
     pieChartContainer.removeAttribute('hidden');
   }
 
+  function scrollToBottom() {
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      left: 0,
+      behavior: 'smooth'
+    });
+  }
+
   function init() {
     fetch(`${apiURL}/us/daily`).then(resp => {
       return resp.json();
@@ -195,6 +203,9 @@ window.addEventListener('DOMContentLoaded', function() {
     let totalBtnFunc = () => {
       if (pieChartData) {
         pieChartContainer.toggleAttribute('hidden');
+        if (!pieChartContainer.hasAttribute('hidden')) {
+          scrollToBottom();
+        }
       } else {
         fetch(`${apiURL}/us`).then(resp => {
           return resp.json();
@@ -221,6 +232,7 @@ window.addEventListener('DOMContentLoaded', function() {
           span.style.fontWeight = 'bold';
           statContainer.appendChild(span);
           createPieChart();
+          scrollToBottom();
         });
       totalBtn.removeEventListener('click', totalBtnFunc);
       }
